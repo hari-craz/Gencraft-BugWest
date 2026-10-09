@@ -873,10 +873,31 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                                   'bg-slate-900 text-white'
                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
+                            disabled={round.status === 'finished'}
                           >
                             {st}
                           </button>
                         ))}
+                        {round.status === 'finished' ? (
+                          <button
+                            disabled
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg uppercase bg-slate-300 text-slate-500 cursor-not-allowed ml-2 border border-slate-400"
+                          >
+                            Round Finished
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              const confirmed = window.confirm("Are you sure you want to finish this round? All participants will be logged out and can no longer submit answers.");
+                              if (confirmed) {
+                                onUpdateRound(round.roundId, { action: 'finish' } as any);
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg uppercase bg-red-600 hover:bg-red-700 text-white shadow-xs transition-colors ml-2"
+                          >
+                            Finish Round
+                          </button>
+                        )}
                       </div>
                     </div>
 

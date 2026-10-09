@@ -11,6 +11,7 @@ import { RoundResultModal } from './components/participant/RoundResultModal';
 import { FinalScorecard } from './components/participant/FinalScorecard';
 import { LeaderboardView } from './components/leaderboard/LeaderboardView';
 import { OrganizerDashboard } from './components/organizer/OrganizerDashboard';
+import { RoundFinishedScreen } from './components/participant/RoundFinishedScreen';
 
 export default function App() {
   const store = useCompetitionStore();
@@ -44,15 +45,26 @@ export default function App() {
     ? leaderboard.find((e) => e.userId === currentParticipantSession.userId)?.rank || 1
     : 1;
 
+  const participantRoundId = currentParticipantSession?.currentRound || currentUser?.authenticatedRound || 1;
+  const activeRoundConfig = store.getRound(participantRoundId as 1 | 2 | 3);
+  const isRoundFinished = activeRoundConfig?.status === 'finished';
+
   // Auto redirect if user role does not match active view
   useEffect(() => {
+    if (currentUser?.role === 'participant' && isRoundFinished) {
+      if (activeView !== 'round-finished') {
+        setActiveView('round-finished');
+      }
+      return;
+    }
+    
     if (activeView === 'organizer-dashboard' && currentUser?.role !== 'organizer') {
       setActiveView('landing');
     }
     if ((activeView === 'participant-dashboard' || activeView === 'coding-arena') && currentUser?.role !== 'participant') {
       setActiveView('landing');
     }
-  }, [currentUser, activeView]);
+  }, [currentUser, activeView, isRoundFinished]);
 
   // Handlers
   const handleOpenLogin = (role: 'participant' | 'organizer') => {
@@ -66,7 +78,13 @@ export default function App() {
       setActiveView('organizer-dashboard');
     } else {
       // Participant session already set by loginParticipantWithTeamCode - just redirect
-      setActiveView('participant-dashboard');
+      const userRoundId = user.authenticatedRound || 1;
+      const roundData = store.getRound(userRoundId as 1 | 2 | 3);
+      if (roundData?.status === 'finished') {
+        setActiveView('round-finished');
+      } else {
+        setActiveView('participant-dashboard');
+      }
     }
   };
 
@@ -161,7 +179,12 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 5: LEADERBOARD */}
+        {/* VIEW 5: ROUND FINISHED SCREEN */}
+        {activeView === 'round-finished' && (
+          <RoundFinishedScreen roundNumber={participantRoundId} />
+        )}
+
+        {/* VIEW 6: LEADERBOARD */}
         {activeView === 'leaderboard' && (
           <LeaderboardView
             entries={leaderboard}

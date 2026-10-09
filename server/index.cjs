@@ -121,8 +121,16 @@ app.post('/api/rounds/verify-code', (req, res) => {
       return res.status(400).json({ error: 'Invalid Bugfest Round Code. Please verify with the event coordinator.' });
     }
 
+    if (round.status === 'finished') {
+      return res.status(400).json({ error: 'This round has been finished. No new participants can log in.' });
+    }
+
     if (round.status === 'locked') {
       return res.status(400).json({ error: `Round ${round.round_number} is currently locked by the organizer.` });
+    }
+
+    if (round.status === 'finished') {
+      return res.status(400).json({ error: 'This round has been finished. No new participants can log in.' });
     }
 
     // Verify team exists if teamId provided
@@ -285,6 +293,8 @@ app.patch('/api/rounds/:id', (req, res) => {
       // Recalculate end_time if duration changed while active
       const baseStart = newStartTime ? new Date(newStartTime).getTime() : now.getTime();
       newEndTime = new Date(baseStart + newDuration * 60 * 1000).toISOString();
+    } else if (action === 'finish') {
+      newStatus = 'finished';
     } else if (action === 'end' || action === 'complete' || status === 'completed') {
       newStatus = 'completed';
     } else if (action === 'lock' || status === 'locked') {
@@ -393,6 +403,11 @@ app.post('/api/submissions', (req, res) => {
 
     // Server-side validation of official round timer
     const round = db.prepare('SELECT * FROM rounds WHERE id = ?').get(roundId);
+    
+    if (round && round.status === 'finished') {
+      return res.status(400).json({ error: 'Round is finished. Submissions are no longer accepted.' });
+    }
+    
     if (round && round.end_time) {
       const nowMs = Date.now();
       const endMs = new Date(round.end_time).getTime();
