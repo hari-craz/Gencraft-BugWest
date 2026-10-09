@@ -84,12 +84,12 @@ export const CodeEditorArena: React.FC<CodeEditorArenaProps> = ({
   // Sync code ONLY on question change (NOT on every 2-second background session poll)
   useEffect(() => {
     if (!currentQuestion) return;
-    const existingDraft = session.codeDrafts[currentQuestion.id];
-    const existingSubmission = session.submissions[currentQuestion.id];
+    const existingDraft = session?.codeDrafts?.[currentQuestion.id];
+    const existingSubmission = session?.submissions?.[currentQuestion.id];
 
-    if (existingSubmission) {
-      setCode(existingSubmission.submittedCode);
-    } else if (existingDraft !== undefined) {
+    if (existingSubmission && (existingSubmission.submittedCode || (existingSubmission as any).code)) {
+      setCode(existingSubmission.submittedCode || (existingSubmission as any).code || '');
+    } else if (existingDraft !== undefined && existingDraft !== null) {
       setCode(existingDraft);
     } else {
       setCode(currentQuestion.buggyCode || '');
@@ -116,7 +116,7 @@ export const CodeEditorArena: React.FC<CodeEditorArenaProps> = ({
     );
   }
 
-  const existingSubmission = session.submissions[currentQuestion.id];
+  const existingSubmission = session?.submissions?.[currentQuestion?.id];
   const isQuestionSubmitted = !!existingSubmission;
 
   // Handle code change with draft persistence
@@ -211,33 +211,33 @@ export const CodeEditorArena: React.FC<CodeEditorArenaProps> = ({
   };
 
   // Line numbers
-  const lineCount = Math.max(code.split('\n').length, 12);
+  const lineCount = Math.max((code || '').split('\n').length, 12);
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
 
   // Participant Score calculations
-  const solvedCount = Object.values(session.submissions).filter(
-    (s) => s.round === round.roundId && s.result === 'Passed'
+  const solvedCount = Object.values(session?.submissions || {}).filter(
+    (s) => s.round === round?.roundId && s.result === 'Passed'
   ).length;
 
   const currentQuestionScore = existingSubmission
-    ? existingSubmission.marksEarned
+    ? (existingSubmission.marksEarned ?? (existingSubmission as any).pointsEarned ?? 0)
     : execResult
     ? execResult.marksEarned
     : 0;
 
   const currentQuestionTestsPassed = existingSubmission
-    ? existingSubmission.testsPassed
+    ? (existingSubmission.testsPassed ?? (existingSubmission as any).passCount ?? 0)
     : execResult
     ? execResult.passedTests
     : 0;
 
   const currentQuestionTotalTests = existingSubmission
-    ? existingSubmission.totalTests
+    ? (existingSubmission.totalTests ?? (existingSubmission as any).totalCount ?? 0)
     : execResult
     ? execResult.totalTests
-    : (currentQuestion.visibleTestCases?.length || 0);
+    : (currentQuestion?.visibleTestCases?.length || 0);
 
-  const currentRoundScore = session.roundScores[round.roundId] || 0;
+  const currentRoundScore = session?.roundScores?.[round?.roundId] || 0;
 
   return (
     <div className="flex-1 flex flex-col bg-slate-100/90 text-slate-900 pb-8">
@@ -424,7 +424,9 @@ export const CodeEditorArena: React.FC<CodeEditorArenaProps> = ({
               <div className="flex items-center gap-1.5">
                 <button
                   disabled={currentIdx === 0}
-                  onClick={() => setCurrentIdx(currentIdx - 1)}
+                  onClick={() => {
+                    if (currentIdx > 0) setCurrentIdx(currentIdx - 1);
+                  }}
                   className="px-2 py-1 text-xs text-slate-400 hover:text-white disabled:opacity-25 flex items-center gap-1"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -432,8 +434,10 @@ export const CodeEditorArena: React.FC<CodeEditorArenaProps> = ({
                 </button>
 
                 <button
-                  disabled={currentIdx === questions.length - 1}
-                  onClick={() => setCurrentIdx(currentIdx + 1)}
+                  disabled={currentIdx >= questions.length - 1}
+                  onClick={() => {
+                    if (currentIdx < questions.length - 1) setCurrentIdx(currentIdx + 1);
+                  }}
                   className="px-2 py-1 text-xs text-slate-400 hover:text-white disabled:opacity-25 flex items-center gap-1"
                 >
                   <span className="hidden sm:inline">Next</span>

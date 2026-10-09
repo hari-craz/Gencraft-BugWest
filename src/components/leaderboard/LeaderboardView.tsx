@@ -34,11 +34,9 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
     );
   });
 
-  const roundTitles: Record<RoundLeaderboardFilter, string> = {
+  const roundTitles: Record<string, string> = {
     overall: 'Cumulative Tournament Standings',
-    1: 'Round 1: Basic Debugging Leaderboard',
-    2: 'Round 2: Core Programming Leaderboard',
-    3: 'Round 3: Advanced Professional Debugging Leaderboard'
+    1: 'Round 1: Basic Debugging Leaderboard'
   };
 
   return (

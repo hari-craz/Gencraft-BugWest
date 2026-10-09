@@ -120,8 +120,22 @@ export class ExecutionService {
 
     const passedCount = testCaseResults.filter((r) => r.passed).length;
     const totalCount = allTests.length;
-    const executionTimeMs = Math.round(performance.now() - startTime + Math.random() * 20 + 12);
-    const marksEarned = Math.round((passedCount / totalCount) * question.marks);
+    const executionTimeMs = Math.round(performance.now() - startTime + Math.random() * 15 + 8);
+
+    const isFullyPassed = !syntaxError && passedCount === totalCount;
+    // Speed bonus for correct answers: faster gets more, wrong gets 0
+    let timeBonus = 0;
+    if (isFullyPassed) {
+      if (executionTimeMs <= 20) {
+        timeBonus = 3;
+      } else if (executionTimeMs <= 35) {
+        timeBonus = 2;
+      } else {
+        timeBonus = 1;
+      }
+    }
+
+    const marksEarned = isFullyPassed ? (question.marks + timeBonus) : 0;
 
     let stdout = '';
     let stderr = '';
@@ -135,7 +149,7 @@ export class ExecutionService {
     }
 
     return {
-      success: !syntaxError && passedCount === totalCount,
+      success: isFullyPassed,
       stdout,
       stderr,
       exitCode: syntaxError ? 1 : 0,
@@ -144,7 +158,7 @@ export class ExecutionService {
       passedTests: passedCount,
       totalTests: totalCount,
       marksEarned,
-      maxMarks: question.marks
+      maxMarks: question.marks + 3
     };
   }
 

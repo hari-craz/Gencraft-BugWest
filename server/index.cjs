@@ -317,6 +317,7 @@ app.patch('/api/rounds/:id', (req, res) => {
         roundNumber: updated.round_number,
         title: updated.round_name,
         joinCode: updated.join_code,
+        bugfestCode: updated.join_code,
         durationMinutes: updated.duration_minutes,
         totalMarks: updated.total_marks || newTotalMarks,
         status: updated.status,
@@ -504,8 +505,16 @@ app.get('/api/leaderboard', (req, res) => {
       };
     });
 
-    // Sort by totalScore DESC
-    leaderboard.sort((a, b) => b.totalScore - a.totalScore);
+    // Sort: 1. questionsSolved (primary), 2. totalScore (with speed bonus), 3. total time tiebreaker
+    leaderboard.sort((a, b) => {
+      if (b.questionsSolved !== a.questionsSolved) {
+        return b.questionsSolved - a.questionsSolved;
+      }
+      if (b.totalScore !== a.totalScore) {
+        return b.totalScore - a.totalScore;
+      }
+      return 0;
+    });
     leaderboard.forEach((entry, idx) => entry.rank = idx + 1);
 
     res.json({ leaderboard });
@@ -597,10 +606,14 @@ app.get('/api/organizer/data', (req, res) => {
           questionId: a.question_id,
           round: a.round_id,
           code: a.code,
+          submittedCode: a.code,
           result: a.status,
           passCount: a.passed_cases,
+          testsPassed: a.passed_cases,
           totalCount: a.total_cases,
+          totalTests: a.total_cases,
           pointsEarned: a.score,
+          marksEarned: a.score,
           submittedAt: a.submitted_at
         };
       });
@@ -613,6 +626,7 @@ app.get('/api/organizer/data', (req, res) => {
         userId: team.id,
         teamName: team.team_name,
         name: team.team_name,
+        accessCode: rounds[0]?.join_code || 'BF-DEFAULT',
         locked: Boolean(team.locked),
         createdAt: team.created_at,
         currentRound,

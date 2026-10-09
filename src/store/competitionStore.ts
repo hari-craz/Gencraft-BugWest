@@ -17,7 +17,8 @@ import { apiClient } from '../services/apiClient';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'gencraft_bugfest_user_v5',
-  SESSION_TEAM_ID: 'gencraft_bugfest_team_id_v5'
+  SESSION_TEAM_ID: 'gencraft_bugfest_team_id_v5',
+  STORED_ROUNDS: 'gencraft_bugfest_rounds_v5'
 };
 
 export const INITIAL_ACCESS_CODES: AccessCodeRecord[] = [
@@ -97,15 +98,6 @@ class StoreEmitter {
 
 const emitter = new StoreEmitter();
 
-// Memory Caches synced with backend database
-let cachedQuestions: Question[] = INITIAL_QUESTIONS;
-let cachedRounds: RoundConfig[] = DEFAULT_ROUNDS;
-let cachedCurrentUser: User | null = null;
-let cachedParticipants: Record<string, ParticipantSession> = {};
-let cachedSubmissions: Submission[] = [];
-let cachedLeaderboardEnabled: boolean = true;
-let isPollingStarted = false;
-
 function loadSession<T>(key: string, fallback: T): T {
   try {
     const data = sessionStorage.getItem(key) || localStorage.getItem(key);
@@ -123,6 +115,23 @@ function saveSession<T>(key: string, data: T) {
     console.error(`Error saving ${key}:`, e);
   }
 }
+
+function getInitialRounds(): RoundConfig[] {
+  const saved = loadSession<RoundConfig[] | null>(STORAGE_KEYS.STORED_ROUNDS, null);
+  if (saved && Array.isArray(saved) && saved.length > 0) {
+    return saved;
+  }
+  return DEFAULT_ROUNDS;
+}
+
+// Memory Caches synced with backend database
+let cachedQuestions: Question[] = INITIAL_QUESTIONS;
+let cachedRounds: RoundConfig[] = getInitialRounds();
+let cachedCurrentUser: User | null = null;
+let cachedParticipants: Record<string, ParticipantSession> = {};
+let cachedSubmissions: Submission[] = [];
+let cachedLeaderboardEnabled: boolean = true;
+let isPollingStarted = false;
 
 export const competitionStore = {
   init() {
@@ -142,19 +151,16 @@ export const competitionStore = {
         const data = await apiClient.fetchOrganizerData();
         if (data) {
           if (data.rounds && data.rounds.length > 0) {
-            // Map backend joinCode -> bugfestCode and merge with existing cached rounds
-            // to preserve any locally generated bugfestCode values
+            // Read stored code directly from database backend
             cachedRounds = data.rounds.map((incoming: RoundConfig) => {
-              const existing = cachedRounds.find((r) => r.roundId === incoming.roundId);
-              const resolvedBugfestCode =
-                incoming.joinCode || incoming.bugfestCode || existing?.bugfestCode;
+              const code = incoming.joinCode || incoming.bugfestCode;
               return {
-                ...(existing || {}),
                 ...incoming,
-                bugfestCode: resolvedBugfestCode,
-                joinCode: incoming.joinCode
+                bugfestCode: code,
+                joinCode: code
               };
             });
+            saveSession(STORAGE_KEYS.STORED_ROUNDS, cachedRounds);
           }
           if (data.questions && data.questions.length > 0) {
             // Backend questions only have `testCases` (flat). Merge with INITIAL_QUESTIONS
@@ -174,12 +180,42 @@ export const competitionStore = {
             });
           }
 
-          if (data.participants) {
-            const pMap: Record<string, ParticipantSession> = {};
-            data.participants.forEach((p) => {
-              pMap[p.userId] = p;
+          if (data.participants && Array.isArray(data.participants)) {
+            const nextMap: Record<string, ParticipantSession> = { ...cachedParticipants };
+            data.participants.forEach((incomingP: any) => {
+              const existing = nextMap[incomingP.userId];
+              
+              // Normalize submissions to preserve standard property names
+              const normalizedSubmissions: Record<string, Submission> = {
+                ...(existing?.submissions || {})
+              };
+              if (incomingP.submissions) {
+                Object.entries(incomingP.submissions).forEach(([qId, sub]: [string, any]) => {
+                  normalizedSubmissions[qId] = {
+                    ...(normalizedSubmissions[qId] || {}),
+                    ...sub,
+                    submittedCode: sub.submittedCode || sub.code || '',
+                    marksEarned: sub.marksEarned ?? sub.pointsEarned ?? 0,
+                    testsPassed: sub.testsPassed ?? sub.passCount ?? 0,
+                    totalTests: sub.totalTests ?? sub.totalCount ?? 0,
+                    result: sub.result || (sub.passCount === sub.totalCount ? 'Passed' : 'Failed')
+                  };
+                });
+              }
+
+              nextMap[incomingP.userId] = {
+                ...(existing || {}),
+                ...incomingP,
+                // Preserve local drafts and visited states
+                codeDrafts: { ...(existing?.codeDrafts || {}), ...(incomingP.codeDrafts || {}) },
+                visitedQuestions: existing?.visitedQuestions && existing.visitedQuestions.length > 0
+                  ? existing.visitedQuestions
+                  : (incomingP.visitedQuestions || ['R1-Q01']),
+                submissions: normalizedSubmissions,
+                accessCode: incomingP.accessCode || existing?.accessCode || cachedRounds[0]?.bugfestCode || 'BF-DEFAULT'
+              };
             });
-            cachedParticipants = pMap;
+            cachedParticipants = nextMap;
           }
           emitter.notify();
         }
@@ -297,11 +333,18 @@ export const competitionStore = {
     // Send to backend DB
     const res = await apiClient.updateRound(roundId, payload);
     const updatedRound = res.success && res.round ? res.round : updates;
+    const resolvedCode = (updatedRound as any).bugfestCode ?? updates.bugfestCode ?? (updatedRound as any).joinCode;
     cachedRounds = (cachedRounds || DEFAULT_ROUNDS).map((r) =>
       r.roundId === roundId
-        ? { ...r, ...updatedRound, bugfestCode: updates.bugfestCode ?? (updatedRound as any).bugfestCode ?? r.bugfestCode }
+        ? {
+            ...r,
+            ...updatedRound,
+            bugfestCode: resolvedCode ?? r.bugfestCode,
+            joinCode: resolvedCode ?? r.joinCode
+          }
         : r
     );
+    saveSession(STORAGE_KEYS.STORED_ROUNDS, cachedRounds);
 
     // If totalMarks changed, dynamically re-split question marks
     if (updates.totalMarks !== undefined) {
@@ -496,6 +539,31 @@ export const competitionStore = {
   // Participant Sessions
   getParticipantSession(userId: string): ParticipantSession | undefined {
     return cachedParticipants[userId];
+  },
+
+  getOrCreateParticipantSession(user: User): ParticipantSession {
+    if (cachedParticipants[user.userId]) {
+      return cachedParticipants[user.userId];
+    }
+    const newSession: ParticipantSession = {
+      userId: user.userId,
+      name: user.name,
+      teamName: user.teamName || user.name,
+      college: user.college || 'Collegiate Participant',
+      accessCode: cachedRounds[0]?.bugfestCode || 'BF-DEFAULT',
+      currentRound: 1,
+      status: 'Active',
+      totalScore: 0,
+      roundScores: { 1: 0, 2: 0, 3: 0 },
+      roundCompleted: { 1: false, 2: false, 3: false },
+      codeDrafts: {},
+      submissions: {},
+      visitedQuestions: ['R1-Q01'],
+      timeRemainingSeconds: { 1: 30 * 60, 2: 25 * 60, 3: 30 * 60 },
+      lastActive: 'Live'
+    };
+    cachedParticipants[user.userId] = newSession;
+    return newSession;
   },
 
   getAllParticipants(): ParticipantSession[] {
@@ -700,11 +768,18 @@ export const competitionStore = {
     });
 
     entries.sort((a, b) => {
-      // 1. Correctness (Score)
+      // 1. Number of correct answers (primary)
+      const solvedA = a.round1QuestionsSolved ?? a.questionsSolved ?? 0;
+      const solvedB = b.round1QuestionsSolved ?? b.questionsSolved ?? 0;
+      if (solvedB !== solvedA) return solvedB - solvedA;
+
+      // 2. Speed of answering / Total score (with speed bonus)
       if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-      // 2. Timing-based tie-breakers (lower time is better)
+
+      // 3. Timing-based tie-breakers (lower time is better)
       if (a.totalTimeRound1Ms !== b.totalTimeRound1Ms) return a.totalTimeRound1Ms - b.totalTimeRound1Ms;
-      // 3. Accuracy
+
+      // 4. Accuracy
       return b.round1Accuracy - a.round1Accuracy;
     });
 

@@ -863,9 +863,6 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                             key={st}
                             onClick={() => {
                               const updates: Partial<RoundConfig> = { status: st };
-                              if (st === 'active' && !round.bugfestCode) {
-                                updates.bugfestCode = competitionStore.generateOrRegenerateRoundCode(round.roundId);
-                              }
                               onUpdateRound(round.roundId, updates);
                             }}
                             className={`px-3 py-1.5 text-xs font-bold rounded-lg uppercase transition-colors ${

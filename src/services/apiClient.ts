@@ -152,6 +152,17 @@ export const apiClient = {
   },
 
   localVerifyCode(cleanCode: string): VerifyCodeResponse {
+    const storedRounds = getLocalData<RoundConfig[] | null>(LOCAL_STORAGE_KEYS.ROUNDS, null)
+      || getLocalData<RoundConfig[] | null>('gencraft_bugfest_rounds_v5', null);
+    const storedCode = (storedRounds?.[0]?.bugfestCode || storedRounds?.[0]?.joinCode || 'BF-R1-8K9M3P').toUpperCase();
+
+    if (cleanCode !== storedCode) {
+      return {
+        success: false,
+        error: 'Invalid Bugfest Code. Please enter the active code provided by the organizer.'
+      };
+    }
+
     const defaultRound: RoundConfig = {
       roundId: 1,
       title: 'ROUND 1 - BugFest Technical Arena',
@@ -162,26 +173,18 @@ export const apiClient = {
       questionCount: 7,
       status: 'active',
       allowedLanguage: 'all',
-      bugfestCode: cleanCode,
-      joinCode: cleanCode
+      bugfestCode: storedCode,
+      joinCode: storedCode
     };
 
-    // Accept standard BugFest code patterns (e.g., BF-R1-XXXXXX, BF-R1-8K9M3P, or any code of 6+ alphanumeric chars)
-    if (cleanCode.startsWith('BF-R1-') || cleanCode === 'BF-R1-8K9M3P' || cleanCode.length >= 6) {
-      return {
-        success: true,
-        round: defaultRound,
-        teamRound: {
-          roundId: 1,
-          status: 'joined',
-          score: 0
-        }
-      };
-    }
-
     return {
-      success: false,
-      error: 'Invalid Bugfest Code format. Expected code format: BF-R1-XXXXXX'
+      success: true,
+      round: storedRounds?.[0] || defaultRound,
+      teamRound: {
+        roundId: 1,
+        status: 'joined',
+        score: 0
+      }
     };
   },
 

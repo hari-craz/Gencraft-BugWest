@@ -138,11 +138,11 @@ export default function App() {
         )}
 
         {/* VIEW 3: CODING ARENA */}
-        {activeView === 'coding-arena' && currentUser && currentParticipantSession && (
+        {activeView === 'coding-arena' && currentUser && (
           <CodeEditorArena
             round={store.getRound(activeRoundId) || rounds[0]}
             questions={store.getQuestionsByRound(activeRoundId)}
-            session={currentParticipantSession}
+            session={currentParticipantSession || store.getOrCreateParticipantSession(currentUser)}
             onSaveDraft={(qId, code) => store.saveCodeDraft(currentUser.userId, qId, code)}
             onSubmitQuestion={(sub) => store.recordSubmission(currentUser.userId, sub)}
             onCompleteRound={handleCompleteRound}
