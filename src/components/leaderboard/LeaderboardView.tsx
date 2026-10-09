@@ -127,30 +127,6 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 <Zap className="w-3.5 h-3.5" />
                 <span>Round 1 (Basic Debugging)</span>
               </button>
-
-              <button
-                onClick={() => setSelectedRoundFilter(2)}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
-                  selectedRoundFilter === 2
-                    ? 'bg-indigo-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>Round 2 (Core Programming)</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedRoundFilter(3)}
-                className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors flex items-center gap-2 ${
-                  selectedRoundFilter === 3
-                    ? 'bg-rose-600 text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>Round 3 (Advanced Master)</span>
-              </button>
             </div>
 
             <div className="text-[11px] font-mono text-slate-500 px-2 py-1 bg-slate-50 rounded hidden md:block">
@@ -235,24 +211,35 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                   <tr>
-                    <th className="py-3 px-4 w-16">Rank</th>
-                    <th className="py-3 px-4">Participant</th>
+                    <th className="py-3 px-4 w-16 text-center">Rank</th>
+                    <th className="py-3 px-4 min-w-[140px]">Participant</th>
+                    {isOrganizer && (
+                      <>
+                        <th className="py-3 px-4 min-w-[120px]">Access Code</th>
+                        <th className="py-3 px-4 min-w-[120px]">User ID</th>
+                      </>
+                    )}
                     <th className="py-3 px-4">College</th>
                     
                     {selectedRoundFilter === 'overall' ? (
                       <>
-                        <th className="py-3 px-4 text-center">Round 1</th>
-                        <th className="py-3 px-4 text-center">Round 2</th>
-                        <th className="py-3 px-4 text-center">Round 3</th>
-                        <th className="py-3 px-4 text-center">Accuracy</th>
+                        <th className="py-3 px-4 text-center">R1 Solved</th>
+                        <th className="py-3 px-4 text-center">R1 Accuracy</th>
+                        <th className="py-3 px-4 text-center">Total Time R1</th>
                         <th className="py-3 px-4 text-right">Cumulative Score</th>
                       </>
                     ) : (
                       <>
-                        <th className="py-3 px-4 text-center">Round {selectedRoundFilter} Solved</th>
-                        <th className="py-3 px-4 text-center">Round Accuracy</th>
-                        <th className="py-3 px-4 text-right">Round {selectedRoundFilter} Score</th>
-                        <th className="py-3 px-4 text-right">Cumulative Total</th>
+                        <th className="py-3 px-4 text-center">Solved</th>
+                        <th className="py-3 px-4 text-center">Accuracy</th>
+                        <th className="py-3 px-4 text-right">Q1 Time</th>
+                        <th className="py-3 px-4 text-right">Q2 Time</th>
+                        <th className="py-3 px-4 text-right">Q3 Time</th>
+                        <th className="py-3 px-4 text-right">Q4 Time</th>
+                        <th className="py-3 px-4 text-right">Q5 Time</th>
+                        <th className="py-3 px-4 text-right">Q6 Time</th>
+                        <th className="py-3 px-4 text-right">Q7 Time</th>
+                        <th className="py-3 px-4 text-right">Round 1 Score</th>
                       </>
                     )}
 
@@ -262,12 +249,22 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                 <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
                   {filteredEntries.map((entry) => (
                     <tr key={entry.userId} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900">
+                      <td className="py-3 px-4 font-bold text-slate-900 text-center">
                         #{entry.rank}
                       </td>
                       <td className="py-3 px-4 font-sans font-bold text-slate-900">
                         {entry.participantName}
                       </td>
+                      {isOrganizer && (
+                        <>
+                          <td className="py-3 px-4 text-slate-600">
+                            {entry.accessCode || '-'}
+                          </td>
+                          <td className="py-3 px-4 text-slate-600 text-[10px]">
+                            {entry.userId}
+                          </td>
+                        </>
+                      )}
                       <td className="py-3 px-4 font-sans text-slate-600 truncate max-w-xs">
                         {entry.college}
                       </td>
@@ -275,16 +272,13 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                       {selectedRoundFilter === 'overall' ? (
                         <>
                           <td className="py-3 px-4 text-center tabular-nums">
-                            {entry.round1Score}
+                            {entry.round1QuestionsSolved}
                           </td>
                           <td className="py-3 px-4 text-center tabular-nums">
-                            {entry.round2Score}
+                            {entry.round1Accuracy}%
                           </td>
-                          <td className="py-3 px-4 text-center tabular-nums">
-                            {entry.round3Score}
-                          </td>
-                          <td className="py-3 px-4 text-center tabular-nums font-medium text-slate-700">
-                            {entry.accuracy}%
+                          <td className="py-3 px-4 text-center tabular-nums text-slate-500">
+                            {entry.totalTimeRound1Ms}ms
                           </td>
                           <td className="py-3 px-4 text-right tabular-nums font-bold text-blue-600 text-sm">
                             {entry.totalScore}
@@ -293,16 +287,20 @@ export const LeaderboardView: React.FC<LeaderboardViewProps> = ({
                       ) : (
                         <>
                           <td className="py-3 px-4 text-center tabular-nums font-bold text-slate-900">
-                            {entry.roundQuestionsSolved || 0} solved
+                            {entry.round1QuestionsSolved} solved
                           </td>
                           <td className="py-3 px-4 text-center tabular-nums font-medium text-slate-700">
-                            {entry.accuracy}%
+                            {entry.round1Accuracy}%
                           </td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q1Time}</td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q2Time}</td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q3Time}</td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q4Time}</td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q5Time}</td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q6Time}</td>
+                          <td className="py-3 px-4 text-right tabular-nums">{entry.q7Time}</td>
                           <td className="py-3 px-4 text-right tabular-nums font-bold text-blue-600 text-sm">
-                            {entry.roundScoreForFilter || 0} pts
-                          </td>
-                          <td className="py-3 px-4 text-right tabular-nums text-slate-500">
-                            {entry.totalScore} pts
+                            {entry.round1Score} pts
                           </td>
                         </>
                       )}

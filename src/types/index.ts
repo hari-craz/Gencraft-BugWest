@@ -8,7 +8,7 @@ export type RoundStatus = 'locked' | 'ready' | 'active' | 'completed';
 
 export type ParticipantStatus = 'Not Started' | 'Active' | 'Completed' | 'Disconnected';
 
-export type RoundLeaderboardFilter = 'overall' | 1 | 2 | 3;
+export type RoundLeaderboardFilter = 'overall' | 1;
 
 export interface TestCase {
   id: string;
@@ -145,12 +145,29 @@ export interface LeaderboardEntry {
   userId: string;
   accessCode?: string;
   college: string;
+  
+  // Round 1 and cumulative metrics
   round1Score: number;
-  round2Score: number;
-  round3Score: number;
+  round2Score: number; // Preserving historical
+  round3Score: number; // Preserving historical
   totalScore: number;
-  accuracy: number;
+  accuracy: number; // Overall accuracy
   questionsSolved: number;
+  
+  round1QuestionsSolved: number;
+  round1Accuracy: number;
+  
+  // Fastest valid submission time for each of the 7 questions
+  q1Time?: string;
+  q2Time?: string;
+  q3Time?: string;
+  q4Time?: string;
+  q5Time?: string;
+  q6Time?: string;
+  q7Time?: string;
+  
+  totalTimeRound1Ms: number;
+  
   roundQuestionsSolved?: number;
   roundScoreForFilter?: number;
   status: ParticipantStatus;

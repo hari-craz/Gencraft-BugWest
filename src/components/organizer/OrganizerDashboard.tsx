@@ -1214,26 +1214,6 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
               >
                 Round 1 Standings
               </button>
-              <button
-                onClick={() => setOrganizerLeaderboardFilter(2)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
-                  organizerLeaderboardFilter === 2
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Round 2 Standings
-              </button>
-              <button
-                onClick={() => setOrganizerLeaderboardFilter(3)}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
-                  organizerLeaderboardFilter === 3
-                    ? 'bg-rose-600 text-white'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Round 3 Standings
-              </button>
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
@@ -1247,24 +1227,29 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                       <th className="py-3 px-4">User ID</th>
                       {organizerLeaderboardFilter === 'overall' ? (
                         <>
-                          <th className="py-3 px-4 text-center">Round 1</th>
-                          <th className="py-3 px-4 text-center">Round 2</th>
-                          <th className="py-3 px-4 text-center">Round 3</th>
-                          <th className="py-3 px-4 text-center">Accuracy</th>
+                          <th className="py-3 px-4 text-center">R1 Solved</th>
+                          <th className="py-3 px-4 text-center">R1 Accuracy</th>
+                          <th className="py-3 px-4 text-center">R1 Total Time</th>
                           <th className="py-3 px-4 text-right">Total Score</th>
                         </>
                       ) : (
                         <>
-                          <th className="py-3 px-4 text-center">Round {organizerLeaderboardFilter} Solved</th>
-                          <th className="py-3 px-4 text-center">Round Accuracy</th>
-                          <th className="py-3 px-4 text-right">Round {organizerLeaderboardFilter} Score</th>
-                          <th className="py-3 px-4 text-right">Total Points</th>
+                          <th className="py-3 px-4 text-center">Q1 Time</th>
+                          <th className="py-3 px-4 text-center">Q2 Time</th>
+                          <th className="py-3 px-4 text-center">Q3 Time</th>
+                          <th className="py-3 px-4 text-center">Q4 Time</th>
+                          <th className="py-3 px-4 text-center">Q5 Time</th>
+                          <th className="py-3 px-4 text-center">Q6 Time</th>
+                          <th className="py-3 px-4 text-center">Q7 Time</th>
+                          <th className="py-3 px-4 text-center">Solved</th>
+                          <th className="py-3 px-4 text-center">Accuracy</th>
+                          <th className="py-3 px-4 text-right">Round 1 Score</th>
                         </>
                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {competitionStore.getLeaderboard(organizerLeaderboardFilter).map((item) => (
+                    {competitionStore.getLeaderboard(organizerLeaderboardFilter as any).map((item) => (
                       <tr key={item.userId} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-3 px-4 font-bold text-slate-900">
                           #{item.rank}
@@ -1281,34 +1266,35 @@ export const OrganizerDashboard: React.FC<OrganizerDashboardProps> = ({
                         {organizerLeaderboardFilter === 'overall' ? (
                           <>
                             <td className="py-3 px-4 text-center tabular-nums">
-                              {item.round1Score}
+                              {item.round1QuestionsSolved}
                             </td>
                             <td className="py-3 px-4 text-center tabular-nums">
-                              {item.round2Score}
+                              {item.round1Accuracy}%
                             </td>
                             <td className="py-3 px-4 text-center tabular-nums">
-                              {item.round3Score}
-                            </td>
-                            <td className="py-3 px-4 text-center tabular-nums">
-                              {item.accuracy}%
+                              {item.totalTimeRound1Ms}ms
                             </td>
                             <td className="py-3 px-4 text-right font-bold text-blue-600 text-sm">
-                              {item.totalScore}
+                              {item.totalScore} pts
                             </td>
                           </>
                         ) : (
                           <>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q1Time}</td>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q2Time}</td>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q3Time}</td>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q4Time}</td>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q5Time}</td>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q6Time}</td>
+                            <td className="py-3 px-4 text-center tabular-nums">{item.q7Time}</td>
                             <td className="py-3 px-4 text-center font-bold text-slate-900">
-                              {item.roundQuestionsSolved || 0} solved
+                              {item.round1QuestionsSolved} solved
                             </td>
                             <td className="py-3 px-4 text-center tabular-nums font-medium">
-                              {item.accuracy}%
+                              {item.round1Accuracy}%
                             </td>
                             <td className="py-3 px-4 text-right font-bold text-blue-600 text-sm">
-                              {item.roundScoreForFilter || 0} pts
-                            </td>
-                            <td className="py-3 px-4 text-right tabular-nums text-slate-500">
-                              {item.totalScore}
+                              {item.round1Score} pts
                             </td>
                           </>
                         )}

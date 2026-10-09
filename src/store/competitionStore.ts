@@ -614,23 +614,57 @@ export const competitionStore = {
     const entries: LeaderboardEntry[] = participants.map((p) => {
       const subs = Object.values(p.submissions);
 
-      let roundSolved = 0;
-      let roundTotal = 0;
-      let roundScore = 0;
+      // Round 1 Authoritative Scoring
+      const round1Subs = subs.filter((s) => s.round === 1);
+      
+      const qTimes: Record<string, number> = {};
+      const qScores: Record<string, number> = {};
+      const qSubmissions: Record<string, Submission> = {};
 
-      if (roundFilter !== 'overall') {
-        const roundSubs = subs.filter((s) => s.round === roundFilter);
-        roundSolved = roundSubs.filter((s) => s.result === 'Passed').length;
-        roundTotal = roundSubs.length;
-        roundScore = p.roundScores[roundFilter] || 0;
-      }
+      // Process for fastest valid submissions & correctness-first
+      round1Subs.forEach((s) => {
+        const qId = s.questionId;
+        const currentBest = qSubmissions[qId];
+        
+        // Correctness first: higher marksEarned is better
+        // Tie breaker: lower executionTimeMs is better (fastest valid submission)
+        if (!currentBest) {
+          qSubmissions[qId] = s;
+        } else if (s.marksEarned > currentBest.marksEarned) {
+          qSubmissions[qId] = s;
+        } else if (s.marksEarned === currentBest.marksEarned && s.executionTimeMs < currentBest.executionTimeMs) {
+          qSubmissions[qId] = s;
+        }
+      });
 
+      let round1Score = 0;
+      let round1Solved = 0;
+      let totalTimeRound1Ms = 0;
+
+      // Question IDs R1-Q01 to R1-Q07
+      const qTimeStrings: Record<string, string> = {};
+      
+      ['R1-Q01', 'R1-Q02', 'R1-Q03', 'R1-Q04', 'R1-Q05', 'R1-Q06', 'R1-Q07'].forEach((qId, idx) => {
+        const bestSub = qSubmissions[qId];
+        if (bestSub) {
+          round1Score += bestSub.marksEarned;
+          if (bestSub.result === 'Passed') {
+            round1Solved++;
+            totalTimeRound1Ms += bestSub.executionTimeMs;
+            qTimeStrings[`q${idx + 1}Time`] = `${bestSub.executionTimeMs}ms`;
+          } else {
+            qTimeStrings[`q${idx + 1}Time`] = '-';
+          }
+        } else {
+          qTimeStrings[`q${idx + 1}Time`] = '-';
+        }
+      });
+
+      const round1Accuracy = round1Subs.length > 0 ? Math.round((round1Solved / Object.keys(qSubmissions).length) * 100) : 0;
+      
       const totalSolved = subs.filter((s) => s.result === 'Passed').length;
       const totalCount = subs.length;
-
-      const accuracy = roundFilter === 'overall'
-        ? (totalCount > 0 ? Math.round((totalSolved / totalCount) * 100) : 0)
-        : (roundTotal > 0 ? Math.round((roundSolved / roundTotal) * 100) : 0);
+      const overallAccuracy = totalCount > 0 ? Math.round((totalSolved / totalCount) * 100) : 0;
 
       return {
         rank: 0,
@@ -638,29 +672,40 @@ export const competitionStore = {
         userId: p.userId,
         accessCode: p.accessCode,
         college: p.college,
-        round1Score: p.roundScores[1] || 0,
+        round1Score: round1Score,
         round2Score: p.roundScores[2] || 0,
         round3Score: p.roundScores[3] || 0,
-        totalScore: p.totalScore || 0,
-        accuracy,
+        totalScore: round1Score, // Cumulative results focus on Round 1 authoritative scoring
+        accuracy: overallAccuracy,
         questionsSolved: totalSolved,
-        roundQuestionsSolved: roundSolved,
-        roundScoreForFilter: roundScore,
+        
+        round1QuestionsSolved: round1Solved,
+        round1Accuracy: round1Accuracy,
+        
+        q1Time: qTimeStrings['q1Time'],
+        q2Time: qTimeStrings['q2Time'],
+        q3Time: qTimeStrings['q3Time'],
+        q4Time: qTimeStrings['q4Time'],
+        q5Time: qTimeStrings['q5Time'],
+        q6Time: qTimeStrings['q6Time'],
+        q7Time: qTimeStrings['q7Time'],
+        
+        totalTimeRound1Ms,
+        
+        roundQuestionsSolved: round1Solved,
+        roundScoreForFilter: round1Score,
         status: p.status,
         lastActive: p.lastActive
       };
     });
 
     entries.sort((a, b) => {
-      if (roundFilter === 'overall') {
-        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-        return b.accuracy - a.accuracy;
-      } else {
-        const scoreA = a.roundScoreForFilter || 0;
-        const scoreB = b.roundScoreForFilter || 0;
-        if (scoreB !== scoreA) return scoreB - scoreA;
-        return b.accuracy - a.accuracy;
-      }
+      // 1. Correctness (Score)
+      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+      // 2. Timing-based tie-breakers (lower time is better)
+      if (a.totalTimeRound1Ms !== b.totalTimeRound1Ms) return a.totalTimeRound1Ms - b.totalTimeRound1Ms;
+      // 3. Accuracy
+      return b.round1Accuracy - a.round1Accuracy;
     });
 
     return entries.map((entry, index) => ({
